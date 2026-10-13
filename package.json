@@ -1,0 +1,9 @@
+{
+  "name": "infinite-stickers",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/core.test.js",
+    "check": "node --check web/app.js"
+  }
+}

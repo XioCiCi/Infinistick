@@ -1,0 +1,6 @@
+data/
+.preview-data/
+.demo-data/
+__pycache__/
+*.pyc
+test-results/

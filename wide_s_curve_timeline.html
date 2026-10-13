@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>无限贴纸 - 宽屏 S 形排版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Caveat:wght@600&family=Fira+Code&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Nunito', 'sans-serif'],
+                        hand: ['Caveat', 'cursive'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        paper: {
+                            100: '#fdfbf7',
+                            200: '#f6f3eb',
+                            300: '#e5dfd3',
+                        },
+                        note: {
+                            yellow: '#fff9c4',
+                            blue: '#e3f2fd',
+                            pink: '#fce4ec',
+                            green: '#e8f5e9',
+                        }
+                    },
+                    boxShadow: {
+                        'note': '2px 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.08)',
+                        'note-hover': '4px 8px 16px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.08)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: #fdfbf7;
+        }
+
+        .bg-paper-texture {
+            background-color: #fdfbf7;
+            background-image: radial-gradient(#e5dfd3 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        #canvas-viewport {
+            cursor: grab;
+        }
+        
+        #canvas-viewport:active {
+            cursor: grabbing;
+        }
+
+        #canvas-content {
+            transform-origin: 0 0;
+            will-change: transform;
+        }
+
+        .timeline-path {
+            stroke-dasharray: 12 12;
+            animation: dash 60s linear infinite;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -2000;
+            }
+        }
+
+        .note-card {
+            position: absolute;
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+            cursor: pointer;
+        }
+
+        .note-card:hover {
+            z-index: 20 !important;
+            transform: translateY(-2px);
+        }
+
+        .washi-tape {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%) rotate(-2deg);
+            width: 80px;
+            height: 25px;
+            background-color: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(2px);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.5);
+            z-index: 5;
+            mix-blend-mode: overlay;
+        }
+
+        .pin {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #d1d5db;
+            transition: color 0.2s;
+        }
+        .pinned .pin {
+            color: #ef4444;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(0,0,0,0.1);
+            border-radius: 10px;
+        }
+
+        .pointer-events-auto { pointer-events: auto; }
+        .pointer-events-none { pointer-events: none; }
+    </style>
+</head>
+<body class="flex h-screen w-screen text-gray-800 antialiased selection:bg-yellow-200">
+
+    <aside class="w-64 bg-paper-100 border-r border-paper-300 shadow-sm z-30 flex flex-col relative shrink-0">
+        <div class="p-6 pb-4">
+            <h1 class="text-2xl font-bold font-hand text-gray-800 flex items-center gap-2">
+                <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                无限贴纸
+            </h1>
+            <p class="text-xs text-gray-500 mt-1">v0.1 宽屏版</p>
+        </div>
+
+        <div class="px-4 py-2 flex-1 overflow-y-auto custom-scrollbar">
+            <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-2">主题画布</h2>
+            
+            <ul class="space-y-1">
+                <li>
+                    <a href="#" class="flex items-center gap-3 px-3 py-2 bg-white rounded-lg text-indigo-600 shadow-sm border border-paper-300 font-medium">
+                        <span class="w-3 h-3 rounded-full bg-blue-400"></span>
+                        项目 A - 架构升级
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-paper-200 rounded-lg transition-colors">
+                        <span class="w-3 h-3 rounded-full bg-pink-400"></span>
+                        英语学习
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-paper-200 rounded-lg transition-colors">
+                        <span class="w-3 h-3 rounded-full bg-yellow-400"></span>
+                        每日工作日记
+                    </a>
+                </li>
+            </ul>
+
+            <button class="mt-4 flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-gray-800 w-full rounded-lg transition-colors border border-dashed border-gray-300 hover:bg-white">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                新建主题
+            </button>
+        </div>
+
+        <div class="p-4 border-t border-paper-300">
+            <a href="#" class="flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-paper-200 rounded-lg transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                回收站
+            </a>
+            <div class="mt-4 flex items-center gap-3 px-3 pt-4 border-t border-gray-200">
+                <img src="https://placehold.co/32x32/indigo/white?text=U" alt="User" class="w-8 h-8 rounded-full border border-gray-300">
+                <div class="text-sm">
+                    <p class="font-semibold text-gray-700">当前用户</p>
+                    <p class="text-xs text-gray-500">已同步</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 relative flex flex-col bg-paper-texture">
+        <header class="h-16 flex items-center justify-between px-6 absolute top-0 left-0 right-0 z-20 pointer-events-none">
+            <div class="flex items-center gap-2 pointer-events-auto bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-paper-300">
+                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <span class="text-xs font-medium text-gray-600">已自动保存 (14:02 PM)</span>
+            </div>
+
+            <div class="flex items-center gap-4 pointer-events-auto">
+                <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full shadow-md font-medium text-sm flex items-center gap-2 transition-transform hover:scale-105">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    新增记录
+                </button>
+                <div class="flex bg-white shadow-sm border border-paper-300 rounded-lg overflow-hidden">
+                    <button onclick="resetZoom()" class="p-2 hover:bg-gray-100 text-gray-600 tooltip" title="重置视图">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div id="canvas-viewport" class="flex-1 w-full h-full relative overflow-hidden">
+            <!-- Extended canvas for horizontal layout (4000px wide x 2500px high) -->
+            <div id="canvas-content" class="absolute w-[4000px] h-[2500px]">
+                
+                <svg width="4000" height="2500" class="absolute top-0 left-0 pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Wide S-Curve Base Path -->
+                    <!-- Tier 1 (L->R) Y=300, Turn Down at X=3600, Tier 2 (R->L) Y=900, Turn Down at X=0, Tier 3 (L->R) Y=1500 -->
+                    <path d="M 200,300 L 3200,300 C 3700,300 3700,1000 3200,1000 L 400,1000 C -100,1000 -100,1700 400,1700 L 3200,1700" 
+                          fill="none" stroke="#d1d5db" stroke-width="8" stroke-linecap="round" />
+                    <!-- Animated Overlay -->
+                    <path class="timeline-path" d="M 200,300 L 3200,300 C 3700,300 3700,1000 3200,1000 L 400,1000 C -100,1000 -100,1700 400,1700 L 3200,1700" 
+                          fill="none" stroke="#9ca3af" stroke-width="8" stroke-linecap="round" />
+                    
+                    <!-- Nodes Layer 1 (Left to Right) -->
+                    <circle cx="200" cy="300" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="600" cy="300" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="1000" cy="300" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="1400" cy="300" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="1800" cy="300" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="2200" cy="300" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="2600" cy="300" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="3000" cy="300" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    
+                    <!-- Nodes Curve 1 -->
+                    <circle cx="3435" cy="400" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="3435" cy="900" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+
+                    <!-- Nodes Layer 2 (Right to Left) -->
+                    <circle cx="3000" cy="1000" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="2600" cy="1000" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="2200" cy="1000" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="1800" cy="1000" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="1400" cy="1000" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="1000" cy="1000" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="600" cy="1000" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+
+                    <!-- Nodes Curve 2 -->
+                    <circle cx="165" cy="1100" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+
+                    <!-- Nodes Layer 3 (Left to Right) -->
+                    <circle cx="400" cy="1700" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                    <circle cx="800" cy="1700" r="10" fill="#fff" stroke="#6366f1" stroke-width="4" />
+                </svg>
+
+                <!-- ================= LAYER 1 (Left -> Right) ================= -->
+
+                <!-- Node 1 -->
+                <div class="note-card bg-note-yellow border border-yellow-200 rounded-xl p-4 w-64 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 70px; top: 120px; z-index: 2;">
+                    <div class="text-xs text-yellow-800 font-mono mb-1">2026-10-01 09:00</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">项目 Kick-off</h3>
+                    <p class="text-xs text-gray-600 line-clamp-3">确认了架构升级的首版范围。主要目标是拆分巨石应用。今天搭建了基础代码库结构...</p>
+                </div>
+
+                <!-- Node 2: Expanded & Pinned -->
+                <div class="note-card pinned bg-note-blue border border-blue-200 rounded-lg w-[400px] shadow-note-hover pointer-events-auto flex flex-col" 
+                     style="left: 550px; top: 350px; z-index: 5;">
+                    <div class="washi-tape"></div>
+                    <svg class="w-6 h-6 pin drop-shadow-md" fill="currentColor" viewBox="0 0 256 256"><path d="M234.34,103.54l-81.88-81.9a15.86,15.86,0,0,0-22.63.15L95.58,56H56A16,16,0,0,0,40,72v24a15.89,15.89,0,0,0,3.31,9.75L79.8,154.5l-51.52,51.53a8,8,0,0,0,11.31,11.31l51.53-51.52,48.76,36.49A15.89,15.89,0,0,0,149.62,204h24a16,16,0,0,0,16-16V148.42l34.22-34.23A15.86,15.86,0,0,0,234.34,103.54ZM173.62,188H151L101.21,150.7a8,8,0,0,0-7.39-1.28,8,8,0,0,0-4.66,3.87L56,192V173.62L135,94.55ZM211.72,103,177.5,137.26a8,8,0,0,0-2.35,5.66v4.61L67.14,39.52h4.61a8,8,0,0,0,5.66-2.35L111.64,33l81.9,81.88A16,16,0,0,0,211.72,103Z"></path></svg>
+                    
+                    <div class="p-5 flex-1 custom-scrollbar overflow-y-auto" style="max-height: 450px;">
+                        <div class="text-xs text-blue-800 font-mono mb-2 flex justify-between items-center">
+                            <span>2026-10-02 14:30</span>
+                            <span class="bg-blue-100 text-blue-600 px-2 py-0.5 rounded text-[10px] font-bold">已钉住</span>
+                        </div>
+                        <h2 class="text-xl font-bold text-gray-800 mb-3">Docker 容器配置报错解决</h2>
+                        
+                        <div class="text-sm text-gray-700 space-y-3">
+                            <p>在本地尝试跑起旧版的数据库镜像时，一直抛出端口冲突的异常。排查了一下午。</p>
+                            <p>核心问题在于之前的 <code>docker-compose.yml</code> 绑定了主机的 5432，但本地已经跑了一个 PostgreSQL。</p>
+                            
+                            <div class="bg-gray-800 text-gray-100 p-3 rounded-md font-mono text-xs relative group">
+                                <button class="absolute top-2 right-2 text-gray-400 hover:text-white hidden group-hover:block transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></button>
+                                <pre><code>version: '3.8'
+services:
+  db:
+    image: postgres:14
+    ports:
+      - "5433:5432" # Changed from 5432:5432
+    environment:
+      POSTGRES_PASSWORD: password</code></pre>
+                            </div>
+                            <p>修改映射后一切正常。附上成功的运行日志截图：</p>
+                            <img src="https://placehold.co/500x200/e3f2fd/1e3a8a?text=Terminal+Success+Log" alt="Log" class="w-full rounded border border-blue-300">
+                        </div>
+                        
+                        <div class="mt-4 pt-3 border-t border-blue-200 flex justify-end gap-2 text-xs">
+                            <button class="text-gray-500 hover:text-gray-800">编辑</button>
+                            <button class="text-blue-600 font-medium hover:text-blue-800">收起</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Node 3 -->
+                <div class="note-card bg-note-pink border border-pink-200 rounded-xl p-4 w-64 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 950px; top: 100px; z-index: 2;">
+                    <div class="text-xs text-pink-800 font-mono mb-1">2026-10-04 10:15</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">UI 组件库调研</h3>
+                    <p class="text-xs text-gray-600">对比了几个主流方案，决定使用 Tailwind CSS 配合 Headless UI 构建基础组件...</p>
+                </div>
+
+                <!-- Node 4 -->
+                <div class="note-card bg-note-green border border-green-200 rounded-xl p-4 w-60 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 1350px; top: 380px; z-index: 2;">
+                    <div class="text-xs text-green-800 font-mono mb-1">2026-10-05 16:45</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">API 网关设计</h3>
+                    <img src="https://placehold.co/400x300/e8f5e9/2e7d32?text=Architecture+Diagram" alt="Diagram" class="w-full h-28 object-cover rounded mb-2 border border-green-300">
+                    <p class="text-xs text-gray-600 line-clamp-2">初步画了一张流量转发示意图。下周找团队过一下。</p>
+                </div>
+
+                <!-- Node 5 -->
+                <div class="note-card bg-note-yellow border border-yellow-200 rounded-xl p-4 w-64 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 1750px; top: 120px; z-index: 2;">
+                    <div class="text-xs text-yellow-800 font-mono mb-1">2026-10-06 09:30</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">修复登录态丢失 BUG</h3>
+                    <p class="text-xs text-gray-600">发现 Token 刷新逻辑在并发请求时有竞态条件。加了一个锁并重写了拦截器。</p>
+                </div>
+
+                <!-- Node 6 -->
+                <div class="note-card bg-white border border-gray-200 rounded-xl p-4 w-64 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 2150px; top: 350px; z-index: 2;">
+                    <div class="text-xs text-gray-500 font-mono mb-1">2026-10-07 14:00</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">周会纪要</h3>
+                    <ul class="text-xs text-gray-600 list-disc pl-4 space-y-1">
+                        <li>前端进度正常</li>
+                        <li>后端接口延期2天</li>
+                        <li>测试环境暂定下周二提供</li>
+                    </ul>
+                </div>
+
+                <!-- Node 7 -->
+                <div class="note-card bg-note-blue border border-blue-200 rounded-xl p-4 w-64 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 2550px; top: 130px; z-index: 2;">
+                    <div class="text-xs text-blue-800 font-mono mb-1">2026-10-08 11:15</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">CICD 脚本更新</h3>
+                    <p class="text-xs text-gray-600">添加了生产环境打包体积检测的步骤。</p>
+                </div>
+
+                <!-- Node 8 -->
+                <div class="note-card bg-note-pink border border-pink-200 rounded-xl p-4 w-64 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 2950px; top: 380px; z-index: 2;">
+                    <div class="text-xs text-pink-800 font-mono mb-1">2026-10-09 17:00</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">周五复盘</h3>
+                    <p class="text-xs text-gray-600">本周基本按照计划完成，只是容器环境卡了半天。下周重点是鉴权中心对接。</p>
+                </div>
+
+                <!-- ================= THE CURVE ================= -->
+                <!-- Node on Curve 1 -->
+                <div class="note-card bg-note-green border border-green-200 rounded-xl p-4 w-64 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 3480px; top: 600px; z-index: 2;">
+                    <div class="text-xs text-green-800 font-mono mb-1">2026-10-10 10:00</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">周末加班查日志</h3>
+                    <p class="text-xs text-gray-600">线上突然出现内存泄漏警告。大概定位到了大文件导出的模块，临时限制了并发数。</p>
+                </div>
+
+                <!-- ================= LAYER 2 (Right -> Left) ================= -->
+                
+                <!-- Node 9 -->
+                <div class="note-card bg-note-yellow border border-yellow-200 rounded-xl p-4 w-64 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 2950px; top: 820px; z-index: 2;">
+                    <div class="text-xs text-yellow-800 font-mono mb-1">2026-10-11 09:30</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">重构导出模块</h3>
+                    <p class="text-xs text-gray-600">把基于内存的生成方式改成了基于流的方案，解决了周末发现的内存隐患。</p>
+                </div>
+
+                <!-- Node 10 -->
+                <div class="note-card bg-note-blue border border-blue-200 rounded-xl p-4 w-64 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 2550px; top: 1080px; z-index: 2;">
+                    <div class="text-xs text-blue-800 font-mono mb-1">2026-10-11 15:00</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">联调鉴权中心</h3>
+                    <p class="text-xs text-gray-600">测试环境打通。获取到了用户详细信息和权限集树。</p>
+                </div>
+
+                <!-- Node 11 -->
+                <div class="note-card bg-note-pink border border-pink-200 rounded-xl p-4 w-60 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 2150px; top: 820px; z-index: 2;">
+                    <div class="text-xs text-pink-800 font-mono mb-1">2026-10-12 11:30</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">UI 走查反馈</h3>
+                    <img src="https://placehold.co/400x200/fce4ec/d81b60?text=Design+Review" alt="Design" class="w-full h-24 object-cover rounded mb-2 border border-pink-300">
+                    <p class="text-xs text-gray-600 line-clamp-2">设计师提了几个间距不对的地方，已录入工单准备修复。</p>
+                </div>
+
+                <!-- Node 12: Expanded Editing Visual -->
+                <div class="note-card bg-white border border-gray-200 rounded-lg w-[500px] shadow-2xl pointer-events-auto flex flex-col" 
+                     style="left: 1550px; top: 1050px; z-index: 10; border-top: 4px solid #6366f1;">
+                    <div class="bg-gray-50 px-3 py-2 border-b border-gray-200 flex gap-1 rounded-t-lg">
+                        <button class="p-1.5 hover:bg-gray-200 rounded text-gray-700 font-bold">B</button>
+                        <button class="p-1.5 hover:bg-gray-200 rounded text-gray-700 italic">I</button>
+                        <button class="p-1.5 hover:bg-yellow-200 rounded bg-yellow-100 text-yellow-800">高亮</button>
+                        <div class="w-px h-6 bg-gray-300 mx-1 my-auto"></div>
+                        <button class="p-1.5 hover:bg-gray-200 rounded text-gray-700 font-serif">H1</button>
+                        <button class="p-1.5 hover:bg-gray-200 rounded text-gray-700 font-serif">H2</button>
+                        <div class="w-px h-6 bg-gray-300 mx-1 my-auto"></div>
+                        <button class="p-1.5 hover:bg-gray-200 rounded text-gray-700" title="图片">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </button>
+                        <button class="p-1.5 hover:bg-gray-200 rounded text-gray-700" title="代码块">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                        </button>
+                    </div>
+
+                    <div class="p-5 flex-1 custom-scrollbar">
+                        <div class="text-xs text-gray-500 font-mono mb-2">2026-10-13 10:20</div>
+                        <input type="text" value="梳理发布检查单" class="w-full text-xl font-bold text-gray-800 mb-3 outline-none placeholder-gray-400 bg-transparent" placeholder="无标题记录">
+                        
+                        <div class="text-sm text-gray-700 outline-none min-h-[120px] leading-relaxed space-y-2" contenteditable="true">
+                            <p>明天就要发首版了，先拉个清单：</p>
+                            <ul class="list-decimal pl-5 space-y-1">
+                                <li>检查所有的环境变量配置。</li>
+                                <li><span class="bg-yellow-200 px-1 rounded">执行完整的回归测试用例。</span></li>
+                                <li>确认服务器的磁盘空间和备份脚本状态。</li>
+                            </ul>
+                            <br>
+                            <p class="text-gray-400 italic">在这里继续输入正文...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Node 13 -->
+                <div class="note-card bg-note-green border border-green-200 rounded-xl p-4 w-64 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 950px; top: 820px; z-index: 2;">
+                    <div class="text-xs text-green-800 font-mono mb-1">2026-10-13 14:00</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">测试通过</h3>
+                    <p class="text-xs text-gray-600">所有用例执行完毕，未发现高优阻塞问题。准备封版。</p>
+                </div>
+                
+                <!-- Node 14 -->
+                <div class="note-card bg-note-yellow border border-yellow-200 rounded-xl p-4 w-64 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 550px; top: 1080px; z-index: 2;">
+                    <div class="text-xs text-yellow-800 font-mono mb-1">2026-10-13 16:30</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">准备发布说明</h3>
+                    <p class="text-xs text-gray-600">正在整理 Release Notes 发给相关团队。</p>
+                </div>
+
+                <!-- ================= LAYER 3 (Left -> Right) ================= -->
+                <!-- Node 15 -->
+                <div class="note-card bg-white border border-gray-200 rounded-xl p-4 w-64 shadow-note hover:shadow-note-hover pointer-events-auto" 
+                     style="left: 350px; top: 1520px; z-index: 2;">
+                    <div class="text-xs text-gray-500 font-mono mb-1">2026-10-14 09:00</div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">上线准备中...</h3>
+                    <p class="text-xs text-gray-600 italic">等待运维分配资源。</p>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="absolute bottom-6 right-6 bg-white/80 backdrop-blur-md p-2 rounded-xl shadow-lg border border-gray-200 flex flex-col gap-2 pointer-events-auto z-20">
+            <button onclick="zoomCanvas(0.1)" class="p-2 bg-white hover:bg-gray-50 rounded-lg text-gray-600 shadow-sm border border-gray-100">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+            </button>
+            <div class="text-xs text-center font-mono text-gray-500 font-bold" id="zoom-level">80%</div>
+            <button onclick="zoomCanvas(-0.1)" class="p-2 bg-white hover:bg-gray-50 rounded-lg text-gray-600 shadow-sm border border-gray-100">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
+            </button>
+        </div>
+    </main>
+
+    <script>
+        const viewport = document.getElementById('canvas-viewport');
+        const content = document.getElementById('canvas-content');
+        const zoomIndicator = document.getElementById('zoom-level');
+        
+        let isDragging = false;
+        let startX, startY;
+        
+        // Adjust initial state for the wider canvas to show the start nicely
+        let state = {
+            x: 0, 
+            y: -100,
+            scale: 0.8
+        };
+
+        function updateTransform() {
+            content.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+            zoomIndicator.textContent = Math.round(state.scale * 100) + '%';
+        }
+
+        // Initialize view
+        updateTransform();
+
+        viewport.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.note-card') || e.target.closest('button')) {
+                return;
+            }
+            isDragging = true;
+            startX = e.clientX - state.x;
+            startY = e.clientY - state.y;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            state.x = e.clientX - startX;
+            state.y = e.clientY - startY;
+            updateTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        function zoomCanvas(delta, originX = null, originY = null) {
+            let newScale = state.scale + delta;
+            newScale = Math.max(0.15, Math.min(newScale, 3));
+            
+            if (originX === null || originY === null) {
+                const rect = viewport.getBoundingClientRect();
+                originX = rect.width / 2;
+                originY = rect.height / 2;
+            }
+
+            const ratio = newScale / state.scale;
+            state.x = originX - (originX - state.x) * ratio;
+            state.y = originY - (originY - state.y) * ratio;
+            
+            state.scale = newScale;
+            updateTransform();
+        }
+
+        function resetZoom() {
+            state.scale = 0.8;
+            state.x = 0;
+            state.y = -100;
+            updateTransform();
+        }
+
+        viewport.addEventListener('wheel', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                const delta = e.deltaY * -0.01;
+                
+                const rect = viewport.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                zoomCanvas(delta, mouseX, mouseY);
+            } else {
+                state.x -= e.deltaX;
+                state.y -= e.deltaY;
+                updateTransform();
+            }
+        }, { passive: false });
+
+    </script>
+</body>
+</html>
